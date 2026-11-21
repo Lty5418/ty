@@ -116,6 +116,9 @@
   }
   .card:nth-child(1){animation-delay:.10s}
   .card:nth-child(2){animation-delay:.16s}
+  .card:nth-child(3){animation-delay:.22s}
+  .card:nth-child(4){animation-delay:.28s}
+  .card:nth-child(5){animation-delay:.34s}
 
   .card:hover,.card:focus-visible{
     transform:translateY(-5px);
@@ -329,6 +332,36 @@
           <span class="arrow" aria-hidden="true">↗</span>
         </div>
       </a>
+
+      <a class="card" href="https://skyd.cc.cd/" target="_blank" rel="noopener noreferrer" aria-label="打开 skyd.cc.cd">
+        <div class="preview">
+          <iframe data-src="https://skyd.cc.cd/" title="skyd.cc.cd 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>
+        </div>
+        <div class="card-body">
+          <span class="card-title">skyd.cc.cd</span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </div>
+      </a>
+
+      <a class="card" href="https://skyd.cc.cd/game" target="_blank" rel="noopener noreferrer" aria-label="打开 skyd.cc.cd/game">
+        <div class="preview">
+          <iframe data-src="https://skyd.cc.cd/game" title="skyd.cc.cd/game 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>
+        </div>
+        <div class="card-body">
+          <span class="card-title">skyd.cc.cd/game</span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </div>
+      </a>
+
+      <a class="card" href="https://lty5418.github.io/Kimi-Projects/%E7%94%9F%E5%8C%96%E5%8D%B1%E6%9C%BA%E7%AA%81%E5%9B%B4.html" target="_blank" rel="noopener noreferrer" aria-label="打开 生化危机突围">
+        <div class="preview">
+          <iframe data-src="https://lty5418.github.io/Kimi-Projects/%E7%94%9F%E5%8C%96%E5%8D%B1%E6%9C%BA%E7%AA%81%E5%9B%B4.html" title="生化危机突围 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>
+        </div>
+        <div class="card-body">
+          <span class="card-title">生化危机突围</span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </div>
+      </a>
     </div>
   </main>
 
@@ -468,17 +501,22 @@
     }
 
     function retryFrame(frame, base, onFail){
-      var n = 0, done = false, timer = null;
+      var n = 0, done = false, waiting = false, timer = null;
 
       function attempt(src){
         clearTimeout(timer);
+        waiting = false;
         frame.src = src;
         // 跨域拿不到状态码，用「没在 6s 内 load」当失败信号
         timer = setTimeout(function(){ if(!done) fail(); }, 6000);
       }
       function fail(){
+        // 超时与 error 事件可能同时来，锁住避免重复排重试
+        if(done || waiting) return;
+        clearTimeout(timer);
         if(n < DELAYS.length){
           var d = DELAYS[n]; n++;
+          waiting = true;
           setTimeout(function(){ attempt(bust(base, n)); }, d);
         }else{
           onFail();
@@ -496,9 +534,14 @@
       ghBox.classList.add('no-img');
     });
 
-    var frame = document.querySelector('.preview iframe');
-    retryFrame(frame, frame.dataset.src, function(){
-      frame.parentNode.classList.add('preview--fallback');
+    // 所有预览都走重试；错峰启动，避免几个游戏页同时开跑抢资源
+    var frames = document.querySelectorAll('.preview iframe');
+    Array.prototype.forEach.call(frames, function(frame, i){
+      setTimeout(function(){
+        retryFrame(frame, frame.dataset.src, function(){
+          frame.parentNode.classList.add('preview--fallback');
+        });
+      }, i * 280);
     });
   })();
   </script>
