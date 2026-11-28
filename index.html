@@ -315,7 +315,7 @@
       <!-- 新增站点：复制整个 <a class="card">，改标题与 data-src / href 即可 -->
       <a class="card" href="https://Lty5418.github.io/Kimi/" target="_blank" rel="noopener noreferrer" aria-label="打开 Kimi小圆球复刻">
         <div class="preview">
-          <iframe data-src="https://Lty5418.github.io/Kimi/" title="Kimi小圆球复刻 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>
+          <iframe data-src="https://Lty5418.github.io/Kimi/" title="Kimi小圆球复刻 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true" allow="autoplay 'none'; encrypted-media 'none'; midi 'none'"></iframe>
         </div>
         <div class="card-body">
           <span class="card-title">Kimi小圆球复刻</span>
@@ -336,7 +336,7 @@
 
       <a class="card" href="https://skyd.cc.cd/" target="_blank" rel="noopener noreferrer" aria-label="打开 skyd.cc.cd">
         <div class="preview">
-          <iframe data-src="https://skyd.cc.cd/" title="skyd.cc.cd 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>
+          <iframe data-src="https://skyd.cc.cd/" title="skyd.cc.cd 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true" allow="autoplay 'none'; encrypted-media 'none'; midi 'none'"></iframe>
         </div>
         <div class="card-body">
           <span class="card-title">skyd.cc.cd</span>
@@ -346,7 +346,7 @@
 
       <a class="card" href="https://skyd.cc.cd/game" target="_blank" rel="noopener noreferrer" aria-label="打开 skyd.cc.cd/game">
         <div class="preview">
-          <iframe data-src="https://skyd.cc.cd/game" title="skyd.cc.cd/game 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>
+          <iframe data-src="https://skyd.cc.cd/game" title="skyd.cc.cd/game 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true" allow="autoplay 'none'; encrypted-media 'none'; midi 'none'"></iframe>
         </div>
         <div class="card-body">
           <span class="card-title">skyd.cc.cd/game</span>
@@ -356,7 +356,7 @@
 
       <a class="card" href="https://lty5418.github.io/Kimi-Projects/%E7%94%9F%E5%8C%96%E5%8D%B1%E6%9C%BA%E7%AA%81%E5%9B%B4.html" target="_blank" rel="noopener noreferrer" aria-label="打开 生化危机突围">
         <div class="preview">
-          <iframe data-src="https://lty5418.github.io/Kimi-Projects/%E7%94%9F%E5%8C%96%E5%8D%B1%E6%9C%BA%E7%AA%81%E5%9B%B4.html" title="生化危机突围 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>
+          <iframe data-src="https://lty5418.github.io/Kimi-Projects/%E7%94%9F%E5%8C%96%E5%8D%B1%E6%9C%BA%E7%AA%81%E5%9B%B4.html" title="生化危机突围 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true" allow="autoplay 'none'; encrypted-media 'none'; midi 'none'"></iframe>
         </div>
         <div class="card-body">
           <span class="card-title">生化危机突围</span>
@@ -366,7 +366,7 @@
 
       <a class="card" href="https://ab6826dc6c80f09f4.app.workbuddy.host/?sharecode=ELZQSVHIMW" target="_blank" rel="noopener noreferrer" aria-label="打开 渐变整流流开场动画">
         <div class="preview">
-          <iframe data-src="https://ab6826dc6c80f09f4.app.workbuddy.host/?sharecode=ELZQSVHIMW" title="渐变整流流 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>
+          <iframe data-src="https://ab6826dc6c80f09f4.app.workbuddy.host/?sharecode=ELZQSVHIMW" title="渐变整流流 实时预览" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true" allow="autoplay 'none'; encrypted-media 'none'; midi 'none'"></iframe>
         </div>
         <div class="card-body">
           <span class="card-title">渐变整流流</span>
@@ -511,13 +511,52 @@
       img.src = base;
     }
 
+    // 预览一律静音：跨域靠 Permissions Policy 禁 autoplay；
+    // 同源（比如部署到同域时）再进一层，把媒体元素和 play() 直接压掉
+    var MUTE_POLICY = "autoplay 'none'; encrypted-media 'none'; midi 'none'";
+
+    function silenceFrame(frame){
+      if(frame.__muted) return;
+      try{
+        var doc = frame.contentDocument;          // 跨域在此抛错，交给上面的策略
+        if(!doc) return;
+        frame.__muted = true;
+        var win = frame.contentWindow;
+
+        function hush(root){
+          if(!root || !root.querySelectorAll) return;
+          var ms = root.querySelectorAll('audio,video');
+          Array.prototype.forEach.call(ms, function(m){
+            try{ m.muted = true; m.volume = 0; m.pause(); m.removeAttribute('autoplay'); }catch(e){}
+          });
+        }
+        hush(doc);
+
+        if(doc.documentElement && win.MutationObserver){
+          new win.MutationObserver(function(){ hush(doc); })
+            .observe(doc.documentElement, {childList:true, subtree:true});
+        }
+        if(win.HTMLMediaElement && win.HTMLMediaElement.prototype.play){
+          var orig = win.HTMLMediaElement.prototype.play;
+          win.HTMLMediaElement.prototype.play = function(){
+            try{ this.muted = true; this.volume = 0; }catch(e){}
+            var p = orig.apply(this, arguments);
+            // 被 autoplay 策略拒绝时不要抛未捕获的 Promise 错误
+            if(p && typeof p.catch === 'function') return p.catch(function(){});
+            return p;
+          };
+        }
+      }catch(e){ /* 跨域预览无需处理 */ }
+    }
+
     function retryFrame(frame, base, onFail){
       var n = 0, done = false, waiting = false, timer = null;
 
       function attempt(src){
         clearTimeout(timer);
         waiting = false;
-        frame.src = src;
+        if(!frame.getAttribute('allow')) frame.setAttribute('allow', MUTE_POLICY);
+        frame.src = src;                         // 策略须在导航前就位
         // 跨域拿不到状态码，用「没在 6s 内 load」当失败信号
         timer = setTimeout(function(){ if(!done) fail(); }, 6000);
       }
@@ -533,7 +572,10 @@
           onFail();
         }
       }
-      frame.addEventListener('load', function(){ done = true; clearTimeout(timer); });
+      frame.addEventListener('load', function(){
+        done = true; clearTimeout(timer);
+        silenceFrame(frame);
+      });
       frame.addEventListener('error', fail);
       attempt(base);
     }
